@@ -1,0 +1,977 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Trending Store - Admin Panel</title>
+    
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#00c853',
+                        secondary: '#ffd600',
+                        danger: '#ff3d00',
+                        gold: '#ffd700',
+                        bgDeep: '#0b0e11',
+                        surface: '#151a21',
+                        surfaceLight: '#1e2329',
+                        border: '#2b3139',
+                        textGray: '#848e9c',
+                        trade: '#00c853',
+                        tradeRed: '#ff3d00'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; margin: 0; padding: 0; }
+        body { background-color: #0b0e11; color: #eaecef; font-family: 'Inter', sans-serif; overflow-x: hidden; font-size: 14px; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #0b0e11; }
+        ::-webkit-scrollbar-thumb { background: #2b3139; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #00c853; }
+        
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes slideIn { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        .animate-fade-in { animation: fadeIn 0.3s ease-out; }
+        .animate-slide-in { animation: slideIn 0.3s ease-out; }
+        
+        .glass { background: rgba(21, 26, 33, 0.95); backdrop-filter: blur(20px); border: 1px solid #2b3139; }
+        .glass-hover:hover { background: rgba(30, 35, 41, 0.95); border-color: #00c853; }
+        
+        .btn-animated { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); position: relative; overflow: hidden; }
+        .btn-animated:active { transform: scale(0.95); }
+        
+        .sidebar { position: fixed; left: 0; top: 0; bottom: 0; width: 260px; background: #151a21; border-right: 1px solid #2b3139; z-index: 1000; overflow-y: auto; transition: transform 0.3s; }
+        .sidebar-item { display: flex; align-items: center; gap: 12px; padding: 12px 16px; margin: 4px 8px; border-radius: 8px; cursor: pointer; transition: all 0.2s; color: #848e9c; }
+        .sidebar-item:hover { background: #1e2329; color: #fff; }
+        .sidebar-item.active { background: #00c853; color: #000; font-weight: 600; }
+        .sidebar-item i { width: 20px; text-align: center; }
+        
+        .main-content { margin-left: 260px; min-height: 100vh; transition: margin-left 0.3s; }
+        
+        .stat-card { background: linear-gradient(145deg, #151a21, #1e2329); border: 1px solid #2b3139; border-radius: 12px; padding: 20px; transition: all 0.3s; }
+        .stat-card:hover { transform: translateY(-2px); border-color: #00c853; box-shadow: 0 4px 20px rgba(0,200,83,0.1); }
+        
+        .tab-btn { padding: 8px 16px; border-radius: 20px; font-size: 13px; font-weight: 500; transition: all 0.2s; border: 1px solid transparent; }
+        .tab-btn.active { background: #00c853; color: #000; border-color: #00c853; }
+        .tab-btn:not(.active) { background: #1e2329; color: #848e9c; border-color: #2b3139; }
+        .tab-btn:not(.active):hover { border-color: #00c853; color: #fff; }
+        
+        .data-table { width: 100%; border-collapse: collapse; }
+        .data-table th { text-align: left; padding: 12px; font-size: 12px; color: #848e9c; font-weight: 600; text-transform: uppercase; border-bottom: 1px solid #2b3139; background: #0b0e11; }
+        .data-table td { padding: 12px; border-bottom: 1px solid #2b3139; font-size: 13px; }
+        .data-table tr:hover td { background: rgba(0,200,83,0.05); }
+        
+        .status-badge { padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; text-transform: uppercase; }
+        .status-pending { background: #ffd600; color: #000; }
+        .status-approved { background: #00c853; color: #000; }
+        .status-rejected { background: #ff3d00; color: #fff; }
+        .status-completed { background: #00c853; color: #000; }
+        
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 2000; display: none; align-items: center; justify-content: center; padding: 20px; backdrop-filter: blur(5px); }
+        .modal-box { background: #151a21; border: 1px solid #2b3139; border-radius: 16px; width: 100%; max-width: 600px; max-height: 90vh; overflow-y: auto; }
+        .modal-header { padding: 20px; border-bottom: 1px solid #2b3139; display: flex; justify-content: space-between; align-items: center; }
+        .modal-body { padding: 20px; }
+        .modal-footer { padding: 20px; border-top: 1px solid #2b3139; display: flex; gap: 10px; justify-content: flex-end; }
+        
+        .form-group { margin-bottom: 16px; }
+        .form-label { display: block; font-size: 12px; color: #848e9c; margin-bottom: 6px; font-weight: 500; }
+        .form-input { width: 100%; background: #0b0e11; border: 1px solid #2b3139; color: #eaecef; padding: 10px 12px; border-radius: 8px; font-family: 'Inter', sans-serif; transition: all 0.2s; }
+        .form-input:focus { outline: none; border-color: #00c853; }
+        
+        .action-btn { width: 32px; height: 32px; border-radius: 6px; border: none; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; margin: 0 2px; transition: all 0.2s; }
+        .action-btn.view { background: rgba(0,200,83,0.1); color: #00c853; }
+        .action-btn.edit { background: rgba(255,214,0,0.1); color: #ffd600; }
+        .action-btn.delete { background: rgba(255,61,0,0.1); color: #ff3d00; }
+        .action-btn:hover { transform: scale(1.1); }
+        
+        .search-box { background: #0b0e11; border: 1px solid #2b3139; border-radius: 8px; padding: 10px 15px; width: 100%; color: white; }
+        .search-box:focus { outline: none; border-color: #00c853; }
+        
+        .mobile-header { display: none; position: fixed; top: 0; left: 0; right: 0; height: 60px; background: #151a21; border-bottom: 1px solid #2b3139; z-index: 999; align-items: center; justify-content: space-between; padding: 0 16px; }
+        .mobile-menu-btn { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; background: #1e2329; border-radius: 8px; border: none; color: #fff; cursor: pointer; }
+        
+        @media (max-width: 1024px) {
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.open { transform: translateX(0); }
+            .main-content { margin-left: 0; margin-top: 60px; }
+            .mobile-header { display: flex; }
+            .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 999; display: none; }
+            .overlay.show { display: block; }
+        }
+        
+        .section-title { font-size: 24px; font-weight: 700; margin-bottom: 24px; display: flex; align-items: center; gap: 12px; }
+        .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+        .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+        .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+        
+        @media (max-width: 768px) {
+            .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+        }
+        
+        .toast { position: fixed; top: 20px; right: 20px; background: #151a21; border: 1px solid #00c853; color: #00c853; padding: 12px 20px; border-radius: 8px; z-index: 10000; transform: translateX(400px); transition: transform 0.3s ease; font-weight: 600; }
+        .toast.show { transform: translateX(0); }
+        .toast.error { border-color: #ff3d00; color: #ff3d00; }
+        
+        .empty-state { text-align: center; padding: 60px 20px; color: #848e9c; }
+        .empty-state i { font-size: 48px; margin-bottom: 16px; opacity: 0.5; }
+        
+        /* LOGIN PAGE STYLES */
+        .login-container { width: 100%; max-width: 420px; padding: 20px; margin: auto; }
+        .login-card { background: rgba(21, 26, 33, 0.95); backdrop-filter: blur(20px); border: 1px solid #2b3139; border-radius: 16px; padding: 40px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5); }
+        .logo-section { text-align: center; margin-bottom: 30px; }
+        .logo-icon { width: 60px; height: 60px; background: #00c853; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; font-size: 32px; color: #000; }
+        .logo-section h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; }
+        .logo-section p { color: #848e9c; font-size: 14px; }
+        .error-message { background: rgba(255, 61, 0, 0.1); border: 1px solid #ff3d00; color: #ff3d00; padding: 12px 16px; border-radius: 8px; font-size: 13px; margin-bottom: 20px; display: none; }
+        .error-message.show { display: block; }
+        .loading-spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(0, 200, 83, 0.3); border-top-color: #00c853; border-radius: 50%; animation: spin 0.8s linear infinite; margin-right: 8px; }
+        .demo-info { background: rgba(0, 200, 83, 0.1); border: 1px solid #00c853; color: #00c853; padding: 12px 16px; border-radius: 8px; font-size: 12px; margin-top: 20px; text-align: center; }
+        .login-btn { width: 100%; background: #00c853; color: #000; border: none; padding: 12px 16px; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; margin-top: 10px; }
+        .login-btn:hover:not(:disabled) { background: #00d65f; transform: translateY(-2px); box-shadow: 0 10px 25px rgba(0, 200, 83, 0.3); }
+        .login-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    </style>
+</head>
+<body>
+
+    <!-- LOGIN PAGE -->
+    <div id="login-page" class="min-h-screen flex items-center justify-center">
+        <div class="login-container">
+            <div class="login-card">
+                <div class="logo-section">
+                    <div class="logo-icon">
+                        <i class="fas fa-shield-alt"></i>
+                    </div>
+                    <h1>Trending Store</h1>
+                    <p>Admin Control Panel</p>
+                </div>
+                
+                <div class="error-message" id="error-message"></div>
+                
+                <form id="login-form" onsubmit="handleLogin(event)">
+                    <div class="form-group">
+                        <label class="form-label">Email Address</label>
+                        <input type="email" id="email" class="form-input" placeholder="admin@example.com" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Password</label>
+                        <input type="password" id="password" class="form-input" placeholder="Enter your password" required>
+                    </div>
+                    
+                    <button type="submit" class="login-btn" id="login-btn">
+                        <span id="btn-text">Sign In</span>
+                    </button>
+                </form>
+                
+                <div class="demo-info">
+                    <i class="fas fa-info-circle mr-2"></i>
+                    Admin credentials required to access this panel
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ADMIN PANEL (Hidden until login) -->
+    <div id="admin-panel" style="display: none;">
+        <!-- Mobile Header -->
+        <div class="mobile-header">
+            <div class="flex items-center gap-3">
+                <button class="mobile-menu-btn" onclick="toggleSidebar()">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <span class="font-bold text-lg">Admin Panel</span>
+            </div>
+            <div class="flex items-center gap-3">
+                <button onclick="logout()" class="text-danger" title="Logout">
+                    <i class="fas fa-power-off"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Overlay for mobile -->
+        <div class="overlay" id="overlay" onclick="toggleSidebar()"></div>
+
+        <!-- Sidebar Navigation -->
+        <div class="sidebar" id="sidebar">
+            <div class="p-4 border-b border-border mb-4">
+                <div class="flex items-center gap-3 mb-2">
+                    <div class="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
+                        <i class="fas fa-shield-alt text-black text-xl"></i>
+                    </div>
+                    <div>
+                        <h1 class="font-bold text-lg leading-tight">Trending Store</h1>
+                        <p class="text-xs text-textGray">Admin Control</p>
+                    </div>
+                </div>
+            </div>
+
+            <nav>
+                <div class="sidebar-item active" onclick="switchSection('dashboard')">
+                    <i class="fas fa-home"></i>
+                    <span>Dashboard</span>
+                </div>
+                
+                <div class="px-4 py-2 text-xs font-bold text-textGray uppercase mt-4 mb-2">User Management</div>
+                <div class="sidebar-item" onclick="switchSection('users')">
+                    <i class="fas fa-users"></i>
+                    <span>All Users</span>
+                </div>
+                <div class="sidebar-item" onclick="switchSection('kyc')">
+                    <i class="fas fa-id-card"></i>
+                    <span>KYC Verification</span>
+                </div>
+                
+                <div class="px-4 py-2 text-xs font-bold text-textGray uppercase mt-4 mb-2">Financial</div>
+                <div class="sidebar-item" onclick="switchSection('deposits')">
+                    <i class="fas fa-arrow-down"></i>
+                    <span>Deposits</span>
+                </div>
+                <div class="sidebar-item" onclick="switchSection('withdrawals')">
+                    <i class="fas fa-arrow-up"></i>
+                    <span>Withdrawals</span>
+                </div>
+            </nav>
+
+            <div class="absolute bottom-0 left-0 right-0 p-4 border-t border-border bg-surface">
+                <div class="flex items-center gap-3 mb-3">
+                    <img id="admin-avatar" src="https://via.placeholder.com/40" class="w-10 h-10 rounded-full border border-primary">
+                    <div class="flex-1 min-w-0">
+                        <p id="admin-name" class="font-semibold text-sm truncate">Admin</p>
+                        <p class="text-xs text-textGray">Super Admin</p>
+                    </div>
+                </div>
+                <button onclick="logout()" class="w-full bg-danger/10 text-danger border border-danger/20 py-2 rounded-lg font-semibold text-sm hover:bg-danger hover:text-white transition-all">
+                    <i class="fas fa-power-off mr-2"></i>Logout
+                </button>
+            </div>
+        </div>
+
+        <!-- Main Content Area -->
+        <div class="main-content p-6">
+            
+            <!-- DASHBOARD SECTION -->
+            <div id="section-dashboard" class="section-content animate-fade-in">
+                <div class="section-title">
+                    <i class="fas fa-home text-primary"></i>
+                    Dashboard Overview
+                </div>
+
+                <!-- Stats Cards -->
+                <div class="grid-4 mb-6">
+                    <div class="stat-card">
+                        <div class="flex justify-between items-start mb-2">
+                            <div>
+                                <p class="text-textGray text-xs uppercase font-bold mb-1">Total Users</p>
+                                <h3 class="text-2xl font-bold" id="stat-total-users">0</h3>
+                            </div>
+                            <div class="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                                <i class="fas fa-users text-primary"></i>
+                            </div>
+                        </div>
+                        <p class="text-xs text-primary flex items-center gap-1">
+                            <i class="fas fa-arrow-up"></i> Live Count
+                        </p>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="flex justify-between items-start mb-2">
+                            <div>
+                                <p class="text-textGray text-xs uppercase font-bold mb-1">Pending Deposits</p>
+                                <h3 class="text-2xl font-bold" id="stat-pending-deposits">₹0</h3>
+                            </div>
+                            <div class="w-10 h-10 rounded-lg bg-secondary/10 flex items-center justify-center">
+                                <i class="fas fa-clock text-secondary"></i>
+                            </div>
+                        </div>
+                        <p class="text-xs text-secondary" id="stat-pending-count">0 requests</p>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="flex justify-between items-start mb-2">
+                            <div>
+                                <p class="text-textGray text-xs uppercase font-bold mb-1">Pending Withdrawals</p>
+                                <h3 class="text-2xl font-bold text-danger" id="stat-pending-withdrawals">₹0</h3>
+                            </div>
+                            <div class="w-10 h-10 rounded-lg bg-danger/10 flex items-center justify-center">
+                                <i class="fas fa-arrow-up text-danger"></i>
+                            </div>
+                        </div>
+                        <p class="text-xs text-danger" id="stat-withdraw-count">0 requests</p>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="flex justify-between items-start mb-2">
+                            <div>
+                                <p class="text-textGray text-xs uppercase font-bold mb-1">KYC Pending</p>
+                                <h3 class="text-2xl font-bold" id="stat-pending-kyc">0</h3>
+                            </div>
+                            <div class="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center">
+                                <i class="fas fa-id-card text-purple-500"></i>
+                            </div>
+                        </div>
+                        <p class="text-xs text-textGray">Verification required</p>
+                    </div>
+                </div>
+
+                <div class="glass rounded-xl p-6">
+                    <h3 class="font-bold mb-4">System Status</h3>
+                    <div class="grid grid-cols-3 gap-4">
+                        <div class="flex items-center gap-3 p-3 bg-surface rounded-lg">
+                            <div class="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
+                            <span class="text-sm">System: <span class="text-primary font-semibold">Active</span></span>
+                        </div>
+                        <div class="flex items-center gap-3 p-3 bg-surface rounded-lg">
+                            <div class="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
+                            <span class="text-sm">Firebase: <span class="text-primary font-semibold">Connected</span></span>
+                        </div>
+                        <div class="flex items-center gap-3 p-3 bg-surface rounded-lg">
+                            <div class="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
+                            <span class="text-sm">Cloudinary: <span class="text-primary font-semibold">Ready</span></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- USERS SECTION -->
+            <div id="section-users" class="section-content hidden animate-fade-in">
+                <div class="section-title">
+                    <i class="fas fa-users text-primary"></i>
+                    User Management
+                </div>
+
+                <div class="glass rounded-xl p-6 mb-6">
+                    <div class="flex flex-wrap gap-4 justify-between items-center mb-6">
+                        <div class="flex gap-2">
+                            <button class="tab-btn active" onclick="filterUsers('all')">All Users</button>
+                            <button class="tab-btn" onclick="filterUsers('verified')">Verified</button>
+                            <button class="tab-btn" onclick="filterUsers('pending')">Pending KYC</button>
+                        </div>
+                        <input type="text" id="user-search" placeholder="Search users..." class="search-box w-64" oninput="searchUsers()">
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Email</th>
+                                    <th>Phone</th>
+                                    <th>Balance</th>
+                                    <th>KYC Status</th>
+                                    <th>Joined</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="users-table-body">
+                                <tr><td colspan="7" class="text-center py-4 text-textGray">Loading users...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- KYC SECTION -->
+            <div id="section-kyc" class="section-content hidden animate-fade-in">
+                <div class="section-title">
+                    <i class="fas fa-id-card text-primary"></i>
+                    KYC Verification
+                </div>
+
+                <div class="glass rounded-xl p-6 mb-6">
+                    <div class="flex gap-2 mb-6">
+                        <button class="tab-btn active" onclick="filterKYC('pending')">Pending</button>
+                        <button class="tab-btn" onclick="filterKYC('verified')">Verified</button>
+                        <button class="tab-btn" onclick="filterKYC('rejected')">Rejected</button>
+                        <button class="tab-btn" onclick="filterKYC('all')">All</button>
+                    </div>
+
+                    <div id="kyc-list" class="space-y-4">
+                        <div class="text-center py-8 text-textGray">Loading KYC requests...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DEPOSITS SECTION -->
+            <div id="section-deposits" class="section-content hidden animate-fade-in">
+                <div class="section-title">
+                    <i class="fas fa-arrow-down text-primary"></i>
+                    Deposit Management
+                </div>
+
+                <div class="glass rounded-xl p-6 mb-6">
+                    <div class="flex gap-2 mb-6">
+                        <button class="tab-btn active" onclick="filterDeposits('pending')">Pending</button>
+                        <button class="tab-btn" onclick="filterDeposits('completed')">Completed</button>
+                        <button class="tab-btn" onclick="filterDeposits('all')">All</button>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>User</th>
+                                    <th>Email</th>
+                                    <th>Amount</th>
+                                    <th>Method</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="deposits-table-body">
+                                <tr><td colspan="7" class="text-center py-4 text-textGray">Loading deposits...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- WITHDRAWALS SECTION -->
+            <div id="section-withdrawals" class="section-content hidden animate-fade-in">
+                <div class="section-title">
+                    <i class="fas fa-arrow-up text-primary"></i>
+                    Withdrawal Management
+                </div>
+
+                <div class="glass rounded-xl p-6 mb-6">
+                    <div class="flex gap-2 mb-6">
+                        <button class="tab-btn active" onclick="filterWithdrawals('pending')">Pending</button>
+                        <button class="tab-btn" onclick="filterWithdrawals('completed')">Completed</button>
+                        <button class="tab-btn" onclick="filterWithdrawals('all')">All</button>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>User</th>
+                                    <th>Email</th>
+                                    <th>Amount</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="withdrawals-table-body">
+                                <tr><td colspan="6" class="text-center py-4 text-textGray">Loading withdrawals...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div id="toast" class="toast"></div>
+
+    <script>
+        // ==================== FIREBASE CONFIG ====================
+        const firebaseConfig = {
+            apiKey: "AIzaSyClHCeyqGiWUlin0YyxgTeNthmSXRb0uSQ",
+            authDomain: "trending-store-1234.firebaseapp.com",
+            projectId: "trending-store-1234",
+            storageBucket: "trending-store-1234.firebasestorage.app",
+            messagingSenderId: "872833621332",
+            appId: "1:872833621332:web:68c505a2f2ff9e5bc83cc1"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        // ==================== CLOUDINARY CONFIG ====================
+        const CLOUDINARY_CONFIG = {
+            cloudName: 'debp1kjtm',
+            uploadPreset: 'sql_admin',
+            folder: 'sql_users',
+            uploadUrl: 'https://api.cloudinary.com/v1_1/debp1kjtm/image/upload'
+        };
+
+        // ==================== STATE ====================
+        let currentUser = null;
+        let usersData = [];
+        let depositsData = [];
+        let withdrawalsData = [];
+        let kycData = [];
+
+        // ==================== AUTO INITIALIZE FIREBASE ====================
+        async function initializeFirebase() {
+            try {
+                // Create admin collection if not exists
+                const adminRef = db.collection('admin').doc('admins');
+                const adminDoc = await adminRef.get();
+                
+                if (!adminDoc.exists) {
+                    await adminRef.set({
+                        uids: [],
+                        createdAt: new Date()
+                    });
+                    console.log('✅ Admin collection created');
+                }
+
+                // Create sample collections
+                const collections = ['users', 'kyc', 'payments', 'withdrawals'];
+                for (const col of collections) {
+                    const docRef = db.collection(col).doc('_init');
+                    const docSnap = await docRef.get();
+                    if (!docSnap.exists) {
+                        await docRef.set({ initialized: true, createdAt: new Date() });
+                        console.log(`✅ Collection '${col}' created`);
+                    }
+                }
+            } catch (error) {
+                console.error('Firebase init error:', error);
+            }
+        }
+
+        // ==================== AUTHENTICATION ====================
+        auth.onAuthStateChanged(async user => {
+            if (user) {
+                currentUser = user;
+                await checkAdminAccess(user.uid);
+            } else {
+                showLoginPage();
+            }
+        });
+
+        async function checkAdminAccess(uid) {
+            try {
+                const doc = await db.collection('admin').doc('admins').get();
+                
+                if (doc.exists && doc.data().uids && doc.data().uids.includes(uid)) {
+                    showAdminPanel();
+                    initializeAdmin();
+                } else {
+                    // Auto-add first user as admin
+                    if (!doc.exists || !doc.data().uids || doc.data().uids.length === 0) {
+                        await db.collection('admin').doc('admins').set({ uids: [uid] }, { merge: true });
+                        showAdminPanel();
+                        initializeAdmin();
+                        showToast('✅ Admin access granted!');
+                    } else {
+                        showToast('Access Denied: Not an admin', 'error');
+                        auth.signOut();
+                    }
+                }
+            } catch (error) {
+                console.error('Admin check error:', error);
+                showToast('Error checking admin status', 'error');
+            }
+        }
+
+        async function handleLogin(event) {
+            event.preventDefault();
+            
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const loginBtn = document.getElementById('login-btn');
+            const btnText = document.getElementById('btn-text');
+            const errorMsg = document.getElementById('error-message');
+            
+            loginBtn.disabled = true;
+            btnText.innerHTML = '<span class="loading-spinner"></span>Signing in...';
+            errorMsg.classList.remove('show');
+            
+            try {
+                await auth.signInWithEmailAndPassword(email, password);
+            } catch (error) {
+                showError(error.message);
+                loginBtn.disabled = false;
+                btnText.textContent = 'Sign In';
+            }
+        }
+
+        function showError(message) {
+            const errorMsg = document.getElementById('error-message');
+            errorMsg.textContent = message;
+            errorMsg.classList.add('show');
+        }
+
+        function logout() {
+            auth.signOut();
+            showLoginPage();
+        }
+
+        // ==================== UI FUNCTIONS ====================
+        function showLoginPage() {
+            document.getElementById('login-page').style.display = 'flex';
+            document.getElementById('admin-panel').style.display = 'none';
+        }
+
+        function showAdminPanel() {
+            document.getElementById('login-page').style.display = 'none';
+            document.getElementById('admin-panel').style.display = 'block';
+            document.getElementById('admin-name').textContent = currentUser.email;
+        }
+
+        function initializeAdmin() {
+            initializeFirebase();
+            loadDashboardStats();
+            setupRealtimeListeners();
+        }
+
+        function switchSection(section) {
+            document.querySelectorAll('.section-content').forEach(el => el.classList.add('hidden'));
+            document.getElementById(`section-${section}`).classList.remove('hidden');
+            
+            document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active'));
+            event.target.closest('.sidebar-item').classList.add('active');
+            
+            if (section === 'users') loadUsers();
+            if (section === 'kyc') loadKYC();
+            if (section === 'deposits') loadDeposits();
+            if (section === 'withdrawals') loadWithdrawals();
+            
+            if (window.innerWidth <= 1024) toggleSidebar();
+        }
+
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('open');
+            document.getElementById('overlay').classList.toggle('show');
+        }
+
+        // ==================== DASHBOARD ====================
+        async function loadDashboardStats() {
+            try {
+                const usersSnap = await db.collection('users').get();
+                document.getElementById('stat-total-users').textContent = usersSnap.size;
+                
+                const depositsSnap = await db.collection('payments').where('status', '==', 'pending').get();
+                let pendingDepositAmount = 0;
+                depositsSnap.forEach(doc => {
+                    pendingDepositAmount += doc.data().amount || 0;
+                });
+                document.getElementById('stat-pending-deposits').textContent = '₹' + pendingDepositAmount.toLocaleString();
+                document.getElementById('stat-pending-count').textContent = depositsSnap.size + ' requests';
+                
+                const withdrawSnap = await db.collection('withdrawals').where('status', '==', 'pending').get();
+                let pendingWithdrawAmount = 0;
+                withdrawSnap.forEach(doc => {
+                    pendingWithdrawAmount += doc.data().amount || 0;
+                });
+                document.getElementById('stat-pending-withdrawals').textContent = '₹' + pendingWithdrawAmount.toLocaleString();
+                document.getElementById('stat-withdraw-count').textContent = withdrawSnap.size + ' requests';
+                
+                const kycSnap = await db.collection('kyc').where('status', '==', 'pending').get();
+                document.getElementById('stat-pending-kyc').textContent = kycSnap.size;
+            } catch (error) {
+                console.error('Dashboard stats error:', error);
+            }
+        }
+
+        // ==================== USERS MANAGEMENT ====================
+        async function loadUsers() {
+            try {
+                const snap = await db.collection('users').get();
+                usersData = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderUsersTable(usersData);
+            } catch (error) {
+                console.error('Load users error:', error);
+                showToast('Error loading users', 'error');
+            }
+        }
+
+        function renderUsersTable(users) {
+            const tbody = document.getElementById('users-table-body');
+            if (users.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-textGray">No users found</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = users.map(u => `
+                <tr>
+                    <td class="font-semibold">${u.name || 'N/A'}</td>
+                    <td>${u.email || 'N/A'}</td>
+                    <td>${u.phone || 'N/A'}</td>
+                    <td class="font-mono">₹${(u.spotBalance || 0).toLocaleString()}</td>
+                    <td><span class="status-badge ${u.kycStatus === 'verified' ? 'status-approved' : 'status-pending'}">${u.kycStatus || 'pending'}</span></td>
+                    <td>${u.createdAt?.toDate?.().toLocaleDateString() || 'N/A'}</td>
+                    <td>
+                        <button class="action-btn view" onclick="viewUser('${u.id}')" title="View">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function filterUsers(type) {
+            document.querySelectorAll('#section-users .tab-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            let filtered = usersData;
+            if (type === 'verified') filtered = usersData.filter(u => u.kycStatus === 'verified');
+            if (type === 'pending') filtered = usersData.filter(u => u.kycStatus === 'pending');
+            
+            renderUsersTable(filtered);
+        }
+
+        function searchUsers() {
+            const term = document.getElementById('user-search').value.toLowerCase();
+            const filtered = usersData.filter(u => 
+                (u.name && u.name.toLowerCase().includes(term)) || 
+                (u.email && u.email.toLowerCase().includes(term))
+            );
+            renderUsersTable(filtered);
+        }
+
+        // ==================== KYC MANAGEMENT ====================
+        async function loadKYC() {
+            try {
+                const snap = await db.collection('kyc').orderBy('submittedAt', 'desc').get();
+                kycData = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                filterKYC('pending');
+            } catch (error) {
+                console.error('Load KYC error:', error);
+            }
+        }
+
+        async function filterKYC(status) {
+            document.querySelectorAll('#section-kyc .tab-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            const container = document.getElementById('kyc-list');
+            let filtered = kycData;
+            if (status !== 'all') filtered = kycData.filter(k => k.status === status);
+            
+            if (filtered.length === 0) {
+                container.innerHTML = '<div class="empty-state"><i class="fas fa-id-card"></i><p>No KYC requests found</p></div>';
+                return;
+            }
+            
+            container.innerHTML = filtered.map(k => `
+                <div class="glass rounded-xl p-6 border border-border hover:border-primary transition-colors">
+                    <div class="flex flex-wrap justify-between items-start gap-4 mb-4">
+                        <div class="flex items-center gap-3">
+                            <img src="${k.photoUrl || 'https://via.placeholder.com/60'}" class="w-16 h-16 rounded-lg object-cover border border-border">
+                            <div>
+                                <h4 class="font-bold text-lg">${k.userName}</h4>
+                                <p class="text-textGray text-sm">${k.email}</p>
+                                <p class="text-textGray text-xs">${k.phone}</p>
+                            </div>
+                        </div>
+                        <span class="status-badge ${k.status === 'verified' ? 'status-approved' : k.status === 'rejected' ? 'status-rejected' : 'status-pending'}">${k.status}</span>
+                    </div>
+                    
+                    <div class="grid-2 mb-4 text-sm">
+                        <div class="bg-surface p-3 rounded-lg">
+                            <span class="text-textGray block text-xs mb-1">Document Type</span>
+                            <span class="font-semibold">${k.documentType}</span>
+                        </div>
+                        <div class="bg-surface p-3 rounded-lg">
+                            <span class="text-textGray block text-xs mb-1">Document Number</span>
+                            <span class="font-semibold">${k.documentNumber}</span>
+                        </div>
+                    </div>
+                    
+                    ${k.status === 'pending' ? `
+                        <div class="flex gap-3">
+                            <button onclick="approveKYC('${k.id}')" class="flex-1 bg-primary text-black font-bold py-2 rounded-lg hover:opacity-90">
+                                <i class="fas fa-check mr-2"></i>Approve
+                            </button>
+                            <button onclick="rejectKYC('${k.id}')" class="flex-1 bg-danger text-white font-bold py-2 rounded-lg hover:opacity-90">
+                                <i class="fas fa-times mr-2"></i>Reject
+                            </button>
+                        </div>
+                    ` : ''}
+                </div>
+            `).join('');
+        }
+
+        async function approveKYC(docId) {
+            try {
+                await db.collection('kyc').doc(docId).update({ status: 'verified', verifiedAt: new Date() });
+                showToast('KYC Approved');
+                loadKYC();
+            } catch (error) {
+                showToast('Error: ' + error.message, 'error');
+            }
+        }
+
+        async function rejectKYC(docId) {
+            const reason = prompt('Enter rejection reason:');
+            if (!reason) return;
+            
+            try {
+                await db.collection('kyc').doc(docId).update({ status: 'rejected', rejectionReason: reason });
+                showToast('KYC Rejected');
+                loadKYC();
+            } catch (error) {
+                showToast('Error: ' + error.message, 'error');
+            }
+        }
+
+        // ==================== DEPOSITS MANAGEMENT ====================
+        async function loadDeposits() {
+            try {
+                const snap = await db.collection('payments').orderBy('timestamp', 'desc').limit(50).get();
+                depositsData = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                filterDeposits('pending');
+            } catch (error) {
+                console.error('Load deposits error:', error);
+            }
+        }
+
+        async function filterDeposits(status) {
+            document.querySelectorAll('#section-deposits .tab-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            const tbody = document.getElementById('deposits-table-body');
+            let filtered = depositsData;
+            if (status !== 'all') filtered = depositsData.filter(d => d.status === status);
+            
+            if (filtered.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-textGray">No deposits found</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = filtered.map(d => `
+                <tr>
+                    <td>${d.timestamp?.toDate?.().toLocaleDateString() || 'N/A'}</td>
+                    <td class="font-semibold">${d.userName || 'Unknown'}</td>
+                    <td>${d.email || 'N/A'}</td>
+                    <td class="font-mono font-bold text-primary">₹${d.amount?.toLocaleString() || 0}</td>
+                    <td>${d.method || 'N/A'}</td>
+                    <td><span class="status-badge ${d.status === 'completed' ? 'status-approved' : 'status-pending'}">${d.status}</span></td>
+                    <td>
+                        ${d.status === 'pending' ? `
+                            <button onclick="approveDeposit('${d.id}')" class="action-btn view" title="Approve">
+                                <i class="fas fa-check"></i>
+                            </button>
+                        ` : ''}
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        async function approveDeposit(docId) {
+            try {
+                await db.collection('payments').doc(docId).update({ status: 'completed', approvedAt: new Date() });
+                showToast('Deposit Approved');
+                loadDeposits();
+            } catch (error) {
+                showToast('Error: ' + error.message, 'error');
+            }
+        }
+
+        // ==================== WITHDRAWALS MANAGEMENT ====================
+        async function loadWithdrawals() {
+            try {
+                const snap = await db.collection('withdrawals').orderBy('timestamp', 'desc').limit(50).get();
+                withdrawalsData = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                filterWithdrawals('pending');
+            } catch (error) {
+                console.error('Load withdrawals error:', error);
+            }
+        }
+
+        async function filterWithdrawals(status) {
+            document.querySelectorAll('#section-withdrawals .tab-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            const tbody = document.getElementById('withdrawals-table-body');
+            let filtered = withdrawalsData;
+            if (status !== 'all') filtered = withdrawalsData.filter(w => w.status === status);
+            
+            if (filtered.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-textGray">No withdrawals found</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = filtered.map(w => `
+                <tr>
+                    <td>${w.timestamp?.toDate?.().toLocaleDateString() || 'N/A'}</td>
+                    <td class="font-semibold">${w.userName || 'Unknown'}</td>
+                    <td>${w.email || 'N/A'}</td>
+                    <td class="font-mono font-bold text-danger">₹${w.amount?.toLocaleString() || 0}</td>
+                    <td><span class="status-badge ${w.status === 'completed' ? 'status-approved' : 'status-pending'}">${w.status}</span></td>
+                    <td>
+                        ${w.status === 'pending' ? `
+                            <button onclick="approveWithdrawal('${w.id}')" class="action-btn view" title="Approve">
+                                <i class="fas fa-check"></i>
+                            </button>
+                        ` : ''}
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        async function approveWithdrawal(docId) {
+            try {
+                await db.collection('withdrawals').doc(docId).update({ status: 'completed', approvedAt: new Date() });
+                showToast('Withdrawal Approved');
+                loadWithdrawals();
+            } catch (error) {
+                showToast('Error: ' + error.message, 'error');
+            }
+        }
+
+        // ==================== REALTIME LISTENERS ====================
+        function setupRealtimeListeners() {
+            db.collection('users').onSnapshot(snap => {
+                usersData = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                loadDashboardStats();
+            });
+
+            db.collection('payments').onSnapshot(snap => {
+                depositsData = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            });
+
+            db.collection('withdrawals').onSnapshot(snap => {
+                withdrawalsData = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            });
+
+            db.collection('kyc').onSnapshot(snap => {
+                kycData = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            });
+        }
+
+        // ==================== UTILITY FUNCTIONS ====================
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = 'toast ' + (type === 'error' ? 'error' : '');
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        // Close modals on outside click
+        window.onclick = function(event) {
+            if (event.target.classList.contains('modal-overlay')) {
+                event.target.style.display = 'none';
+            }
+        }
+
+        // Initialize on page load
+        window.addEventListener('load', initializeFirebase);
+    </script>
+</body>
+</html>
