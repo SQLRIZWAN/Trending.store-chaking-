@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Login - Trending Store</title>
+    
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            background: linear-gradient(135deg, #0b0e11 0%, #151a21 100%);
+            color: #eaecef;
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .login-container {
+            width: 100%;
+            max-width: 420px;
+            padding: 20px;
+        }
+        
+        .login-card {
+            background: rgba(21, 26, 33, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid #2b3139;
+            border-radius: 16px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+        
+        .logo-section {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .logo-icon {
+            width: 60px;
+            height: 60px;
+            background: #00c853;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 16px;
+            font-size: 32px;
+            color: #000;
+        }
+        
+        .logo-section h1 {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        
+        .logo-section p {
+            color: #848e9c;
+            font-size: 14px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-label {
+            display: block;
+            font-size: 12px;
+            color: #848e9c;
+            margin-bottom: 8px;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+        
+        .form-input {
+            width: 100%;
+            background: #0b0e11;
+            border: 1px solid #2b3139;
+            color: #eaecef;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-family: 'Inter', sans-serif;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        
+        .form-input:focus {
+            outline: none;
+            border-color: #00c853;
+            box-shadow: 0 0 0 3px rgba(0, 200, 83, 0.1);
+        }
+        
+        .form-input::placeholder {
+            color: #5a6370;
+        }
+        
+        .login-btn {
+            width: 100%;
+            background: #00c853;
+            color: #000;
+            border: none;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-top: 10px;
+        }
+        
+        .login-btn:hover:not(:disabled) {
+            background: #00d65f;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(0, 200, 83, 0.3);
+        }
+        
+        .login-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .error-message {
+            background: rgba(255, 61, 0, 0.1);
+            border: 1px solid #ff3d00;
+            color: #ff3d00;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        
+        .error-message.show {
+            display: block;
+        }
+        
+        .loading-spinner {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border: 2px solid rgba(0, 200, 83, 0.3);
+            border-top-color: #00c853;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-right: 8px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .demo-info {
+            background: rgba(0, 200, 83, 0.1);
+            border: 1px solid #00c853;
+            color: #00c853;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 12px;
+            margin-top: 20px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-card">
+            <div class="logo-section">
+                <div class="logo-icon">
+                    <i class="fas fa-shield-alt"></i>
+                </div>
+                <h1>Trending Store</h1>
+                <p>Admin Control Panel</p>
+            </div>
+            
+            <div class="error-message" id="error-message"></div>
+            
+            <form id="login-form" onsubmit="handleLogin(event)">
+                <div class="form-group">
+                    <label class="form-label">Email Address</label>
+                    <input 
+                        type="email" 
+                        id="email" 
+                        class="form-input" 
+                        placeholder="admin@example.com"
+                        required
+                    >
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Password</label>
+                    <input 
+                        type="password" 
+                        id="password" 
+                        class="form-input" 
+                        placeholder="Enter your password"
+                        required
+                    >
+                </div>
+                
+                <button type="submit" class="login-btn" id="login-btn">
+                    <span id="btn-text">Sign In</span>
+                </button>
+            </form>
+            
+            <div class="demo-info">
+                <i class="fas fa-info-circle mr-2"></i>
+                Admin credentials required to access this panel
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Firebase Config (Updated)
+        const firebaseConfig = {
+            apiKey: "AIzaSyClHCeyqGiWUlin0YyxgTeNthmSXRb0uSQ",
+            authDomain: "trending-store-1234.firebaseapp.com",
+            projectId: "trending-store-1234",
+            storageBucket: "trending-store-1234.firebasestorage.app",
+            messagingSenderId: "872833621332",
+            appId: "1:872833621332:web:68c505a2f2ff9e5bc83cc1"
+        };
+        
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+        
+        // Check if already logged in
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                window.location.href = 'admin.html';
+            }
+        });
+        
+        async function handleLogin(event) {
+            event.preventDefault();
+            
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const loginBtn = document.getElementById('login-btn');
+            const btnText = document.getElementById('btn-text');
+            const errorMsg = document.getElementById('error-message');
+            
+            // Show loading state
+            loginBtn.disabled = true;
+            btnText.innerHTML = '<span class="loading-spinner"></span>Signing in...';
+            errorMsg.classList.remove('show');
+            
+            try {
+                // Sign in user
+                const userCred = await auth.signInWithEmailAndPassword(email, password);
+                const uid = userCred.user.uid;
+                
+                // Check if user is admin
+                const adminDoc = await db.collection('admin').doc('admins').get();
+                
+                if (adminDoc.exists && adminDoc.data().uids && adminDoc.data().uids.includes(uid)) {
+                    // Admin verified, redirect
+                    window.location.href = 'admin.html';
+                } else {
+                    // Not an admin
+                    await auth.signOut();
+                    showError('Access Denied: You are not an admin');
+                    loginBtn.disabled = false;
+                    btnText.textContent = 'Sign In';
+                }
+            } catch (error) {
+                showError(error.message);
+                loginBtn.disabled = false;
+                btnText.textContent = 'Sign In';
+            }
+        }
+        
+        function showError(message) {
+            const errorMsg = document.getElementById('error-message');
+            errorMsg.textContent = message;
+            errorMsg.classList.add('show');
+        }
+    </script>
+</body>
+</html>

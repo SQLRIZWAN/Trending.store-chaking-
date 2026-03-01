@@ -1,0 +1,1455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Trending Store - Admin Panel</title>
+    
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+    <!-- Cloudinary Upload Script -->
+    <script src="cloudinary-config.js"></script>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#00c853',
+                        secondary: '#ffd600',
+                        danger: '#ff3d00',
+                        gold: '#ffd700',
+                        bgDeep: '#0b0e11',
+                        surface: '#151a21',
+                        surfaceLight: '#1e2329',
+                        border: '#2b3139',
+                        textGray: '#848e9c',
+                        trade: '#00c853',
+                        tradeRed: '#ff3d00'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; margin: 0; padding: 0; }
+        body { background-color: #0b0e11; color: #eaecef; font-family: 'Inter', sans-serif; overflow-x: hidden; font-size: 14px; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #0b0e11; }
+        ::-webkit-scrollbar-thumb { background: #2b3139; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #00c853; }
+        
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes slideIn { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        
+        .animate-fade-in { animation: fadeIn 0.3s ease-out; }
+        .animate-slide-in { animation: slideIn 0.3s ease-out; }
+        
+        .glass { background: rgba(21, 26, 33, 0.95); backdrop-filter: blur(20px); border: 1px solid #2b3139; }
+        .glass-hover:hover { background: rgba(30, 35, 41, 0.95); border-color: #00c853; }
+        
+        .btn-animated { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); position: relative; overflow: hidden; }
+        .btn-animated:active { transform: scale(0.95); }
+        
+        .sidebar { position: fixed; left: 0; top: 0; bottom: 0; width: 260px; background: #151a21; border-right: 1px solid #2b3139; z-index: 1000; overflow-y: auto; transition: transform 0.3s; }
+        .sidebar-item { display: flex; align-items: center; gap: 12px; padding: 12px 16px; margin: 4px 8px; border-radius: 8px; cursor: pointer; transition: all 0.2s; color: #848e9c; }
+        .sidebar-item:hover { background: #1e2329; color: #fff; }
+        .sidebar-item.active { background: #00c853; color: #000; font-weight: 600; }
+        .sidebar-item i { width: 20px; text-align: center; }
+        
+        .main-content { margin-left: 260px; min-height: 100vh; transition: margin-left 0.3s; }
+        
+        .stat-card { background: linear-gradient(145deg, #151a21, #1e2329); border: 1px solid #2b3139; border-radius: 12px; padding: 20px; transition: all 0.3s; }
+        .stat-card:hover { transform: translateY(-2px); border-color: #00c853; box-shadow: 0 4px 20px rgba(0,200,83,0.1); }
+        
+        .tab-btn { padding: 8px 16px; border-radius: 20px; font-size: 13px; font-weight: 500; transition: all 0.2s; border: 1px solid transparent; }
+        .tab-btn.active { background: #00c853; color: #000; border-color: #00c853; }
+        .tab-btn:not(.active) { background: #1e2329; color: #848e9c; border-color: #2b3139; }
+        .tab-btn:not(.active):hover { border-color: #00c853; color: #fff; }
+        
+        .data-table { width: 100%; border-collapse: collapse; }
+        .data-table th { text-align: left; padding: 12px; font-size: 12px; color: #848e9c; font-weight: 600; text-transform: uppercase; border-bottom: 1px solid #2b3139; background: #0b0e11; }
+        .data-table td { padding: 12px; border-bottom: 1px solid #2b3139; font-size: 13px; }
+        .data-table tr:hover td { background: rgba(0,200,83,0.05); }
+        
+        .status-badge { padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; text-transform: uppercase; }
+        .status-pending { background: #ffd600; color: #000; }
+        .status-approved { background: #00c853; color: #000; }
+        .status-rejected { background: #ff3d00; color: #fff; }
+        .status-completed { background: #00c853; color: #000; }
+        
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 2000; display: none; align-items: center; justify-content: center; padding: 20px; backdrop-filter: blur(5px); }
+        .modal-box { background: #151a21; border: 1px solid #2b3139; border-radius: 16px; width: 100%; max-width: 600px; max-height: 90vh; overflow-y: auto; }
+        .modal-header { padding: 20px; border-bottom: 1px solid #2b3139; display: flex; justify-content: space-between; align-items: center; }
+        .modal-body { padding: 20px; }
+        .modal-footer { padding: 20px; border-top: 1px solid #2b3139; display: flex; gap: 10px; justify-content: flex-end; }
+        
+        .form-group { margin-bottom: 16px; }
+        .form-label { display: block; font-size: 12px; color: #848e9c; margin-bottom: 6px; font-weight: 500; }
+        .form-input { width: 100%; background: #0b0e11; border: 1px solid #2b3139; color: #eaecef; padding: 10px 12px; border-radius: 8px; font-family: 'Inter', sans-serif; transition: all 0.2s; }
+        .form-input:focus { outline: none; border-color: #00c853; }
+        .form-select { width: 100%; background: #0b0e11; border: 1px solid #2b3139; color: #eaecef; padding: 10px 12px; border-radius: 8px; cursor: pointer; }
+        
+        .action-btn { width: 32px; height: 32px; border-radius: 6px; border: none; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; margin: 0 2px; transition: all 0.2s; }
+        .action-btn.view { background: rgba(0,200,83,0.1); color: #00c853; }
+        .action-btn.edit { background: rgba(255,214,0,0.1); color: #ffd600; }
+        .action-btn.delete { background: rgba(255,61,0,0.1); color: #ff3d00; }
+        .action-btn:hover { transform: scale(1.1); }
+        
+        .search-box { background: #0b0e11; border: 1px solid #2b3139; border-radius: 8px; padding: 10px 15px; width: 100%; color: white; }
+        .search-box:focus { outline: none; border-color: #00c853; }
+        
+        .mobile-header { display: none; position: fixed; top: 0; left: 0; right: 0; height: 60px; background: #151a21; border-bottom: 1px solid #2b3139; z-index: 999; align-items: center; justify-content: space-between; padding: 0 16px; }
+        .mobile-menu-btn { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; background: #1e2329; border-radius: 8px; border: none; color: #fff; cursor: pointer; }
+        
+        @media (max-width: 1024px) {
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.open { transform: translateX(0); }
+            .main-content { margin-left: 0; margin-top: 60px; }
+            .mobile-header { display: flex; }
+            .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 999; display: none; }
+            .overlay.show { display: block; }
+        }
+        
+        .section-title { font-size: 24px; font-weight: 700; margin-bottom: 24px; display: flex; align-items: center; gap: 12px; }
+        .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+        .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+        .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+        
+        @media (max-width: 768px) {
+            .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+        }
+        
+        .toast { position: fixed; top: 20px; right: 20px; background: #151a21; border: 1px solid #00c853; color: #00c853; padding: 12px 20px; border-radius: 8px; z-index: 10000; transform: translateX(400px); transition: transform 0.3s ease; font-weight: 600; }
+        .toast.show { transform: translateX(0); }
+        .toast.error { border-color: #ff3d00; color: #ff3d00; }
+        
+        .empty-state { text-align: center; padding: 60px 20px; color: #848e9c; }
+        .empty-state i { font-size: 48px; margin-bottom: 16px; opacity: 0.5; }
+    </style>
+</head>
+<body>
+
+    <!-- Mobile Header -->
+    <div class="mobile-header">
+        <div class="flex items-center gap-3">
+            <button class="mobile-menu-btn" onclick="toggleSidebar()">
+                <i class="fas fa-bars"></i>
+            </button>
+            <span class="font-bold text-lg">Admin Panel</span>
+        </div>
+        <div class="flex items-center gap-3">
+            <button onclick="logout()" class="text-danger" title="Logout">
+                <i class="fas fa-power-off"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Overlay for mobile -->
+    <div class="overlay" id="overlay" onclick="toggleSidebar()"></div>
+
+    <!-- Sidebar Navigation -->
+    <div class="sidebar" id="sidebar">
+        <div class="p-4 border-b border-border mb-4">
+            <div class="flex items-center gap-3 mb-2">
+                <div class="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
+                    <i class="fas fa-shield-alt text-black text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg leading-tight">Trending Store</h1>
+                    <p class="text-xs text-textGray">Admin Control</p>
+                </div>
+            </div>
+        </div>
+
+        <nav>
+            <div class="sidebar-item active" onclick="switchSection('dashboard')">
+                <i class="fas fa-home"></i>
+                <span>Dashboard</span>
+            </div>
+            
+            <div class="px-4 py-2 text-xs font-bold text-textGray uppercase mt-4 mb-2">User Management</div>
+            <div class="sidebar-item" onclick="switchSection('users')">
+                <i class="fas fa-users"></i>
+                <span>All Users</span>
+            </div>
+            <div class="sidebar-item" onclick="switchSection('kyc')">
+                <i class="fas fa-id-card"></i>
+                <span>KYC Verification</span>
+            </div>
+            
+            <div class="px-4 py-2 text-xs font-bold text-textGray uppercase mt-4 mb-2">Financial</div>
+            <div class="sidebar-item" onclick="switchSection('deposits')">
+                <i class="fas fa-arrow-down"></i>
+                <span>Deposits</span>
+            </div>
+            <div class="sidebar-item" onclick="switchSection('withdrawals')">
+                <i class="fas fa-arrow-up"></i>
+                <span>Withdrawals</span>
+            </div>
+            <div class="sidebar-item" onclick="switchSection('transfers')">
+                <i class="fas fa-exchange-alt"></i>
+                <span>Internal Transfers</span>
+            </div>
+            
+            <div class="px-4 py-2 text-xs font-bold text-textGray uppercase mt-4 mb-2">Products</div>
+            <div class="sidebar-item" onclick="switchSection('nfts')">
+                <i class="fas fa-image"></i>
+                <span>NFT Management</span>
+            </div>
+            <div class="sidebar-item" onclick="switchSection('investments')">
+                <i class="fas fa-chart-pie"></i>
+                <span>Investment Plans</span>
+            </div>
+            <div class="sidebar-item" onclick="switchSection('trading')">
+                <i class="fas fa-chart-line"></i>
+                <span>Trading Config</span>
+            </div>
+            
+            <div class="px-4 py-2 text-xs font-bold text-textGray uppercase mt-4 mb-2">System</div>
+            <div class="sidebar-item" onclick="switchSection('reports')">
+                <i class="fas fa-chart-bar"></i>
+                <span>Reports & Analytics</span>
+            </div>
+            <div class="sidebar-item" onclick="switchSection('settings')">
+                <i class="fas fa-cog"></i>
+                <span>Settings</span>
+            </div>
+            <div class="sidebar-item" onclick="switchSection('notifications')">
+                <i class="fas fa-bell"></i>
+                <span>Notifications</span>
+            </div>
+        </nav>
+
+        <div class="absolute bottom-0 left-0 right-0 p-4 border-t border-border bg-surface">
+            <div class="flex items-center gap-3 mb-3">
+                <img id="admin-avatar" src="https://via.placeholder.com/40" class="w-10 h-10 rounded-full border border-primary">
+                <div class="flex-1 min-w-0">
+                    <p id="admin-name" class="font-semibold text-sm truncate">Admin</p>
+                    <p class="text-xs text-textGray">Super Admin</p>
+                </div>
+            </div>
+            <button onclick="logout()" class="w-full bg-danger/10 text-danger border border-danger/20 py-2 rounded-lg font-semibold text-sm hover:bg-danger hover:text-white transition-all">
+                <i class="fas fa-power-off mr-2"></i>Logout
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <div class="main-content p-6">
+        
+        <!-- DASHBOARD SECTION -->
+        <div id="section-dashboard" class="section-content animate-fade-in">
+            <div class="section-title">
+                <i class="fas fa-home text-primary"></i>
+                Dashboard Overview
+            </div>
+
+            <!-- Stats Cards -->
+            <div class="grid-4 mb-6">
+                <div class="stat-card">
+                    <div class="flex justify-between items-start mb-2">
+                        <div>
+                            <p class="text-textGray text-xs uppercase font-bold mb-1">Total Users</p>
+                            <h3 class="text-2xl font-bold" id="stat-total-users">0</h3>
+                        </div>
+                        <div class="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                            <i class="fas fa-users text-primary"></i>
+                        </div>
+                    </div>
+                    <p class="text-xs text-primary flex items-center gap-1">
+                        <i class="fas fa-arrow-up"></i> 12% this week
+                    </p>
+                </div>
+
+                <div class="stat-card">
+                    <div class="flex justify-between items-start mb-2">
+                        <div>
+                            <p class="text-textGray text-xs uppercase font-bold mb-1">Pending Deposits</p>
+                            <h3 class="text-2xl font-bold" id="stat-pending-deposits">₹0</h3>
+                        </div>
+                        <div class="w-10 h-10 rounded-lg bg-secondary/10 flex items-center justify-center">
+                            <i class="fas fa-clock text-secondary"></i>
+                        </div>
+                    </div>
+                    <p class="text-xs text-secondary" id="stat-pending-count">0 requests</p>
+                </div>
+
+                <div class="stat-card">
+                    <div class="flex justify-between items-start mb-2">
+                        <div>
+                            <p class="text-textGray text-xs uppercase font-bold mb-1">Pending Withdrawals</p>
+                            <h3 class="text-2xl font-bold text-danger" id="stat-pending-withdrawals">₹0</h3>
+                        </div>
+                        <div class="w-10 h-10 rounded-lg bg-danger/10 flex items-center justify-center">
+                            <i class="fas fa-arrow-up text-danger"></i>
+                        </div>
+                    </div>
+                    <p class="text-xs text-danger" id="stat-withdraw-count">0 requests</p>
+                </div>
+
+                <div class="stat-card">
+                    <div class="flex justify-between items-start mb-2">
+                        <div>
+                            <p class="text-textGray text-xs uppercase font-bold mb-1">KYC Pending</p>
+                            <h3 class="text-2xl font-bold" id="stat-pending-kyc">0</h3>
+                        </div>
+                        <div class="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center">
+                            <i class="fas fa-id-card text-purple-500"></i>
+                        </div>
+                    </div>
+                    <p class="text-xs text-textGray">Verification required</p>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="grid-2 mb-6">
+                <div class="glass rounded-xl p-6">
+                    <h3 class="font-bold mb-4 flex items-center gap-2">
+                        <i class="fas fa-bolt text-secondary"></i> Quick Actions
+                    </h3>
+                    <div class="grid grid-cols-2 gap-3">
+                        <button onclick="switchSection('deposits')" class="btn-animated bg-surfaceLight hover:bg-primary hover:text-black border border-border p-3 rounded-lg text-left">
+                            <i class="fas fa-check-circle mb-2 block text-xl"></i>
+                            <span class="font-semibold text-sm">Approve Deposits</span>
+                        </button>
+                        <button onclick="switchSection('withdrawals')" class="btn-animated bg-surfaceLight hover:bg-danger hover:text-white border border-border p-3 rounded-lg text-left">
+                            <i class="fas fa-money-bill-wave mb-2 block text-xl"></i>
+                            <span class="font-semibold text-sm">Process Withdrawals</span>
+                        </button>
+                        <button onclick="openModal('add-nft-modal')" class="btn-animated bg-surfaceLight hover:bg-purple-500 hover:text-white border border-border p-3 rounded-lg text-left">
+                            <i class="fas fa-plus mb-2 block text-xl"></i>
+                            <span class="font-semibold text-sm">Add NFT</span>
+                        </button>
+                        <button onclick="openModal('broadcast-modal')" class="btn-animated bg-surfaceLight hover:bg-secondary hover:text-black border border-border p-3 rounded-lg text-left">
+                            <i class="fas fa-bullhorn mb-2 block text-xl"></i>
+                            <span class="font-semibold text-sm">Broadcast Msg</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="glass rounded-xl p-6">
+                    <h3 class="font-bold mb-4 flex items-center gap-2">
+                        <i class="fas fa-chart-line text-primary"></i> Recent Activity
+                    </h3>
+                    <div id="recent-activity" class="space-y-3 max-h-64 overflow-y-auto">
+                        <div class="text-textGray text-sm text-center py-4">Loading...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- System Status -->
+            <div class="glass rounded-xl p-6">
+                <h3 class="font-bold mb-4">System Status</h3>
+                <div class="grid grid-cols-3 gap-4">
+                    <div class="flex items-center gap-3 p-3 bg-surface rounded-lg">
+                        <div class="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
+                        <span class="text-sm">Trading: <span class="text-primary font-semibold">Active</span></span>
+                    </div>
+                    <div class="flex items-center gap-3 p-3 bg-surface rounded-lg">
+                        <div class="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
+                        <span class="text-sm">Deposits: <span class="text-primary font-semibold">Active</span></span>
+                    </div>
+                    <div class="flex items-center gap-3 p-3 bg-surface rounded-lg">
+                        <div class="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
+                        <span class="text-sm">API Connection: <span class="text-primary font-semibold">Stable</span></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- USERS SECTION -->
+        <div id="section-users" class="section-content hidden animate-fade-in">
+            <div class="section-title">
+                <i class="fas fa-users text-primary"></i>
+                User Management
+            </div>
+
+            <div class="glass rounded-xl p-6 mb-6">
+                <div class="flex flex-wrap gap-4 justify-between items-center mb-6">
+                    <div class="flex gap-2">
+                        <button class="tab-btn active" onclick="filterUsers('all')">All Users</button>
+                        <button class="tab-btn" onclick="filterUsers('verified')">Verified</button>
+                        <button class="tab-btn" onclick="filterUsers('pending')">Pending KYC</button>
+                        <button class="tab-btn" onclick="filterUsers('suspended')">Suspended</button>
+                    </div>
+                    <div class="flex gap-3">
+                        <input type="text" id="user-search" placeholder="Search users..." class="search-box w-64" oninput="searchUsers()">
+                        <button onclick="exportUsers()" class="btn-animated bg-primary text-black px-4 py-2 rounded-lg font-semibold">
+                            <i class="fas fa-download mr-2"></i>Export
+                        </button>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>User</th>
+                                <th>Email/Phone</th>
+                                <th>Balance</th>
+                                <th>KYC Status</th>
+                                <th>Joined</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="users-table-body">
+                            <!-- Dynamic content -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- KYC SECTION -->
+        <div id="section-kyc" class="section-content hidden animate-fade-in">
+            <div class="section-title">
+                <i class="fas fa-id-card text-purple-500"></i>
+                KYC Verification
+            </div>
+
+            <div class="glass rounded-xl p-6 mb-6">
+                <div class="flex gap-2 mb-6">
+                    <button class="tab-btn active" onclick="filterKYC('pending')">Pending</button>
+                    <button class="tab-btn" onclick="filterKYC('verified')">Verified</button>
+                    <button class="tab-btn" onclick="filterKYC('rejected')">Rejected</button>
+                    <button class="tab-btn" onclick="filterKYC('all')">All</button>
+                </div>
+
+                <div class="grid gap-4" id="kyc-list">
+                    <!-- KYC cards will be inserted here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- DEPOSITS SECTION -->
+        <div id="section-deposits" class="section-content hidden animate-fade-in">
+            <div class="section-title">
+                <i class="fas fa-arrow-down text-primary"></i>
+                Deposit Management
+            </div>
+
+            <div class="glass rounded-xl p-6 mb-6">
+                <div class="flex gap-2 mb-6">
+                    <button class="tab-btn active" onclick="filterDeposits('pending')">Pending</button>
+                    <button class="tab-btn" onclick="filterDeposits('approved')">Approved</button>
+                    <button class="tab-btn" onclick="filterDeposits('rejected')">Rejected</button>
+                    <button class="tab-btn" onclick="filterDeposits('all')">All</button>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>User</th>
+                                <th>Amount</th>
+                                <th>Type</th>
+                                <th>Transaction ID</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="deposits-table-body">
+                            <!-- Dynamic content -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- WITHDRAWALS SECTION -->
+        <div id="section-withdrawals" class="section-content hidden animate-fade-in">
+            <div class="section-title">
+                <i class="fas fa-arrow-up text-danger"></i>
+                Withdrawal Requests
+            </div>
+
+            <div class="glass rounded-xl p-6 mb-6">
+                <div class="flex gap-2 mb-6">
+                    <button class="tab-btn active" onclick="filterWithdrawals('pending')">Pending</button>
+                    <button class="tab-btn" onclick="filterWithdrawals('approved')">Approved</button>
+                    <button class="tab-btn" onclick="filterWithdrawals('rejected')">Rejected</button>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>User</th>
+                                <th>Amount</th>
+                                <th>Account</th>
+                                <th>UPI ID</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="withdrawals-table-body">
+                            <!-- Dynamic content -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- NFT MANAGEMENT SECTION -->
+        <div id="section-nfts" class="section-content hidden animate-fade-in">
+            <div class="section-title">
+                <i class="fas fa-image text-purple-500"></i>
+                NFT Management
+                <button onclick="openModal('add-nft-modal')" class="ml-auto bg-primary text-black px-4 py-2 rounded-lg font-semibold text-sm">
+                    <i class="fas fa-plus mr-2"></i>Add New NFT
+                </button>
+            </div>
+
+            <div class="grid-4" id="nft-grid">
+                <!-- NFT cards -->
+            </div>
+        </div>
+
+        <!-- INVESTMENT PLANS SECTION -->
+        <div id="section-investments" class="section-content hidden animate-fade-in">
+            <div class="section-title">
+                <i class="fas fa-chart-pie text-primary"></i>
+                Investment Plans
+                <button onclick="openModal('add-plan-modal')" class="ml-auto bg-primary text-black px-4 py-2 rounded-lg font-semibold text-sm">
+                    <i class="fas fa-plus mr-2"></i>Create Plan
+                </button>
+            </div>
+
+            <div class="grid gap-4" id="plans-list">
+                <!-- Investment plans -->
+            </div>
+        </div>
+
+        <!-- TRADING CONFIG SECTION -->
+        <div id="section-trading" class="section-content hidden animate-fade-in">
+            <div class="section-title">
+                <i class="fas fa-chart-line text-secondary"></i>
+                Trading Configuration
+            </div>
+
+            <div class="grid-2">
+                <div class="glass rounded-xl p-6">
+                    <h3 class="font-bold mb-4">Trading Pairs</h3>
+                    <div id="trading-pairs-list" class="space-y-2 mb-4">
+                        <!-- Pairs list -->
+                    </div>
+                    <button onclick="addTradingPair()" class="w-full border border-dashed border-border p-3 rounded-lg text-textGray hover:border-primary hover:text-primary transition-colors">
+                        <i class="fas fa-plus mr-2"></i>Add Pair
+                    </button>
+                </div>
+
+                <div class="glass rounded-xl p-6">
+                    <h3 class="font-bold mb-4">Fee Configuration</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="form-label">Spot Trading Fee (%)</label>
+                            <input type="number" id="spot-fee" class="form-input" value="0.1" step="0.01">
+                        </div>
+                        <div>
+                            <label class="form-label">Margin Trading Fee (%)</label>
+                            <input type="number" id="margin-fee" class="form-input" value="0.15" step="0.01">
+                        </div>
+                        <div>
+                            <label class="form-label">Futures Trading Fee (%)</label>
+                            <input type="number" id="futures-fee" class="form-input" value="0.02" step="0.01">
+                        </div>
+                        <button onclick="saveFeeConfig()" class="btn-animated w-full bg-primary text-black font-bold py-2 rounded-lg">Save Changes</button>
+                    </div>
+                </div>
+
+                <div class="glass rounded-xl p-6">
+                    <h3 class="font-bold mb-4">Leverage Settings</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="form-label">Max Margin Leverage</label>
+                            <select class="form-select">
+                                <option value="3">3x</option>
+                                <option value="5" selected>5x</option>
+                                <option value="10">10x</option>
+                                <option value="20">20x</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="form-label">Max Futures Leverage</label>
+                            <select class="form-select">
+                                <option value="100">100x</option>
+                                <option value="500">500x</option>
+                                <option value="1000">1000x</option>
+                                <option value="5000" selected>5000x</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass rounded-xl p-6">
+                    <h3 class="font-bold mb-4 text-danger">Risk Controls</h3>
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between p-3 bg-surface rounded-lg">
+                            <span>Maintenance Mode</span>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="maintenance-mode" class="sr-only peer">
+                                <div class="w-11 h-6 bg-surfaceLight peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-danger"></div>
+                            </label>
+                        </div>
+                        <div class="flex items-center justify-between p-3 bg-surface rounded-lg">
+                            <span>Withdrawal Freeze</span>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="withdrawal-freeze" class="sr-only peer">
+                                <div class="w-11 h-6 bg-surfaceLight peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-danger"></div>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SETTINGS SECTION -->
+        <div id="section-settings" class="section-content hidden animate-fade-in">
+            <div class="section-title">
+                <i class="fas fa-cog text-textGray"></i>
+                System Settings
+            </div>
+
+            <div class="grid-2">
+                <div class="glass rounded-xl p-6">
+                    <h3 class="font-bold mb-4">Payment Settings</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="form-label">UPI ID for Deposits</label>
+                            <input type="text" id="upi-id" class="form-input" placeholder="admin@upi">
+                        </div>
+                        <div>
+                            <label class="form-label">USDT Deposit Address (BEP20)</label>
+                            <input type="text" id="usdt-address" class="form-input" placeholder="0x...">
+                        </div>
+                        <div>
+                            <label class="form-label">Minimum Deposit (INR)</label>
+                            <input type="number" id="min-deposit" class="form-input" value="500">
+                        </div>
+                        <div>
+                            <label class="form-label">Minimum Withdrawal (INR)</label>
+                            <input type="number" id="min-withdrawal" class="form-input" value="500">
+                        </div>
+                        <button onclick="savePaymentSettings()" class="btn-animated w-full bg-primary text-black font-bold py-2 rounded-lg">Save Settings</button>
+                    </div>
+                </div>
+
+                <div class="glass rounded-xl p-6">
+                    <h3 class="font-bold mb-4">API Configuration</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="form-label">CoinGecko API Key (Optional)</label>
+                            <input type="text" class="form-input" placeholder="Enter API key">
+                        </div>
+                        <div>
+                            <label class="form-label">TradingView Widget Theme</label>
+                            <select class="form-select">
+                                <option value="dark" selected>Dark</option>
+                                <option value="light">Light</option>
+                            </select>
+                        </div>
+                        <div class="p-4 bg-surface rounded-lg border border-border">
+                            <p class="text-sm text-textGray mb-2">Firebase Status</p>
+                            <div class="flex items-center gap-2 text-primary">
+                                <i class="fas fa-check-circle"></i>
+                                <span class="font-semibold">Connected</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Other sections placeholders -->
+        <div id="section-transfers" class="section-content hidden">
+            <div class="section-title">Internal Transfers</div>
+            <div class="glass rounded-xl p-6">Transfer history will be shown here</div>
+        </div>
+
+        <div id="section-reports" class="section-content hidden">
+            <div class="section-title">Reports & Analytics</div>
+            <div class="glass rounded-xl p-6">Detailed analytics dashboard</div>
+        </div>
+
+        <div id="section-notifications" class="section-content hidden">
+            <div class="section-title">Notifications</div>
+            <div class="glass rounded-xl p-6">Broadcast messages and notifications</div>
+        </div>
+    </div>
+
+    <!-- MODALS -->
+
+    <!-- View User Modal -->
+    <div id="view-user-modal" class="modal-overlay">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h3 class="font-bold text-lg">User Details</h3>
+                <button onclick="closeModal('view-user-modal')" class="w-8 h-8 rounded-lg bg-surfaceLight flex items-center justify-center hover:bg-danger hover:text-white transition-colors">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body" id="user-modal-content">
+                <!-- Dynamic content -->
+            </div>
+            <div class="modal-footer">
+                <button onclick="closeModal('view-user-modal')" class="px-4 py-2 bg-surfaceLight rounded-lg">Close</button>
+                <button onclick="saveUserChanges()" class="px-4 py-2 bg-primary text-black rounded-lg font-semibold">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add NFT Modal -->
+    <div id="add-nft-modal" class="modal-overlay">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h3 class="font-bold text-lg">Add New NFT</h3>
+                <button onclick="closeModal('add-nft-modal')" class="w-8 h-8 rounded-lg bg-surfaceLight flex items-center justify-center hover:bg-danger hover:text-white transition-colors">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">NFT Name</label>
+                    <input type="text" id="nft-name" class="form-input" placeholder="e.g. Crypto Dragon #1">
+                </div>
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label class="form-label">Price (₹)</label>
+                        <input type="number" id="nft-price" class="form-input" placeholder="2500">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Rarity</label>
+                        <select id="nft-rarity" class="form-select">
+                            <option value="common">Common</option>
+                            <option value="rare">Rare</option>
+                            <option value="epic">Epic</option>
+                            <option value="legendary">Legendary</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label class="form-label">Holding Days</label>
+                        <input type="number" id="nft-days" class="form-input" placeholder="30">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Daily Profit (₹)</label>
+                        <input type="number" id="nft-profit" class="form-input" placeholder="2.5">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Description</label>
+                    <textarea id="nft-desc" class="form-input" rows="3" placeholder="NFT description..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Image URL</label>
+                    <input type="text" id="nft-image" class="form-input" placeholder="https://...">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button onclick="closeModal('add-nft-modal')" class="px-4 py-2 bg-surfaceLight rounded-lg">Cancel</button>
+                <button onclick="saveNewNFT()" class="px-4 py-2 bg-primary text-black rounded-lg font-semibold">Create NFT</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Broadcast Modal -->
+    <div id="broadcast-modal" class="modal-overlay">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h3 class="font-bold text-lg">Broadcast Notification</h3>
+                <button onclick="closeModal('broadcast-modal')" class="w-8 h-8 rounded-lg bg-surfaceLight flex items-center justify-center hover:bg-danger hover:text-white transition-colors">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Title</label>
+                    <input type="text" id="notif-title" class="form-input" placeholder="Notification title">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Message</label>
+                    <textarea id="notif-message" class="form-input" rows="4" placeholder="Message content..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Target Audience</label>
+                    <select class="form-select">
+                        <option>All Users</option>
+                        <option>Verified Users Only</option>
+                        <option>Active Traders</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button onclick="closeModal('broadcast-modal')" class="px-4 py-2 bg-surfaceLight rounded-lg">Cancel</button>
+                <button onclick="sendBroadcast()" class="px-4 py-2 bg-primary text-black rounded-lg font-semibold">Send to All</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div id="toast" class="toast"></div>
+
+    <script>
+        // Firebase Config
+        const firebaseConfig = {
+            apiKey: "AIzaSyClHCeyqGiWUlin0YyxgTeNthmSXRb0uSQ",
+            authDomain: "trending-store-1234.firebaseapp.com",
+            projectId: "trending-store-1234",
+            storageBucket: "trending-store-1234.firebasestorage.app",
+            messagingSenderId: "872833621332",
+            appId: "1:872833621332:web:68c505a2f2ff9e5bc83cc1"
+        };
+        
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        // State
+        let currentSection = 'dashboard';
+        let currentUser = null;
+        let usersData = [];
+        let depositsData = [];
+        let withdrawalsData = [];
+        let kycData = [];
+
+        // Check Auth
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                currentUser = user;
+                checkAdminAccess(user.uid);
+            } else {
+                window.location.href = 'login.html'; // Redirect to Firebase login page; // Redirect to login
+            }
+        });
+
+        async function checkAdminAccess(uid) {
+            // Check if user is admin
+            const doc = await db.collection('admin').doc('admins').get();
+            if (doc.exists && doc.data().uids.includes(uid)) {
+                initializeAdmin();
+            } else {
+                alert('Access Denied');
+                auth.signOut();
+            }
+        }
+
+        function initializeAdmin() {
+            loadDashboardStats();
+            loadRecentActivity();
+            setupRealtimeListeners();
+        }
+
+        // Sidebar Navigation
+        function switchSection(section) {
+            // Hide all sections
+            document.querySelectorAll('.section-content').forEach(el => el.classList.add('hidden'));
+            document.getElementById(`section-${section}`).classList.remove('hidden');
+            
+            // Update sidebar active state
+            document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active'));
+            event.target.closest('.sidebar-item').classList.add('active');
+            
+            currentSection = section;
+            
+            // Load section specific data
+            if (section === 'users') loadUsers();
+            if (section === 'kyc') loadKYC();
+            if (section === 'deposits') loadDeposits();
+            if (section === 'withdrawals') loadWithdrawals();
+            if (section === 'nfts') loadNFTs();
+            if (section === 'investments') loadInvestments();
+            
+            // Close sidebar on mobile
+            if (window.innerWidth <= 1024) {
+                toggleSidebar();
+            }
+        }
+
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('open');
+            document.getElementById('overlay').classList.toggle('show');
+        }
+
+        // Dashboard Stats
+        async function loadDashboardStats() {
+            // Total Users
+            const usersSnap = await db.collection('users').get();
+            document.getElementById('stat-total-users').textContent = usersSnap.size;
+            
+            // Pending Deposits
+            const depositsSnap = await db.collection('payments').where('status', '==', 'pending').get();
+            let pendingDepositAmount = 0;
+            depositsSnap.forEach(doc => {
+                pendingDepositAmount += doc.data().amount || 0;
+            });
+            document.getElementById('stat-pending-deposits').textContent = '₹' + pendingDepositAmount.toLocaleString();
+            document.getElementById('stat-pending-count').textContent = depositsSnap.size + ' requests';
+            
+            // Pending Withdrawals
+            const withdrawSnap = await db.collection('withdrawals').where('status', '==', 'pending').get();
+            let pendingWithdrawAmount = 0;
+            withdrawSnap.forEach(doc => {
+                pendingWithdrawAmount += doc.data().amount || 0;
+            });
+            document.getElementById('stat-pending-withdrawals').textContent = '₹' + pendingWithdrawAmount.toLocaleString();
+            document.getElementById('stat-withdraw-count').textContent = withdrawSnap.size + ' requests';
+            
+            // Pending KYC
+            const kycSnap = await db.collection('kyc').where('status', '==', 'pending').get();
+            document.getElementById('stat-pending-kyc').textContent = kycSnap.size;
+        }
+
+        async function loadRecentActivity() {
+            const container = document.getElementById('recent-activity');
+            
+            // Get recent deposits
+            const recentDeposits = await db.collection('payments').orderBy('timestamp', 'desc').limit(5).get();
+            
+            let html = '';
+            recentDeposits.forEach(doc => {
+                const data = doc.data();
+                html += `
+                    <div class="flex items-center justify-between p-3 bg-surface rounded-lg border border-border">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                                <i class="fas fa-arrow-down text-primary"></i>
+                            </div>
+                            <div>
+                                <p class="font-semibold text-sm">Deposit Request</p>
+                                <p class="text-textGray text-xs">${data.userName || 'Unknown'}</p>
+                            </div>
+                        </div>
+                        <span class="font-mono font-bold text-primary">₹${data.amount}</span>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+
+        // Users Management
+        async function loadUsers() {
+            const tbody = document.getElementById('users-table-body');
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4">Loading...</td></tr>';
+            
+            const snap = await db.collection('users').get();
+            usersData = [];
+            snap.forEach(doc => {
+                usersData.push({ id: doc.id, ...doc.data() });
+            });
+            
+            renderUsersTable(usersData);
+        }
+
+        function renderUsersTable(users) {
+            const tbody = document.getElementById('users-table-body');
+            
+            if (users.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-textGray">No users found</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = users.map(user => `
+                <tr>
+                    <td>
+                        <div class="flex items-center gap-3">
+                            <img src="${user.avatar || 'https://via.placeholder.com/32'}" class="w-8 h-8 rounded-full">
+                            <span class="font-semibold">${user.name || 'N/A'}</span>
+                        </div>
+                    </td>
+                    <td class="text-textGray">
+                        <div>${user.email || '-'}</div>
+                        <div class="text-xs">${user.phone || '-'}</div>
+                    </td>
+                    <td class="font-mono font-bold">₹${((user.spotBalance || 0) + (user.futuresBalance || 0)).toLocaleString()}</td>
+                    <td>
+                        <span class="status-badge ${user.kycStatus === 'verified' ? 'status-approved' : user.kycStatus === 'pending' ? 'status-pending' : 'status-rejected'}">
+                            ${user.kycStatus || 'Unverified'}
+                        </span>
+                    </td>
+                    <td class="text-textGray text-sm">${user.createdAt?.toDate().toLocaleDateString() || 'N/A'}</td>
+                    <td>
+                        <button class="action-btn view" onclick="viewUser('${user.id}')" title="View">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <button class="action-btn edit" onclick="editUser('${user.id}')" title="Edit Balance">
+                            <i class="fas fa-wallet"></i>
+                        </button>
+                        <button class="action-btn delete" onclick="suspendUser('${user.id}')" title="Suspend">
+                            <i class="fas fa-ban"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function filterUsers(type) {
+            document.querySelectorAll('#section-users .tab-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            let filtered = usersData;
+            if (type === 'verified') filtered = usersData.filter(u => u.kycStatus === 'verified');
+            if (type === 'pending') filtered = usersData.filter(u => u.kycStatus === 'pending');
+            if (type === 'suspended') filtered = usersData.filter(u => u.suspended === true);
+            
+            renderUsersTable(filtered);
+        }
+
+        function searchUsers() {
+            const term = document.getElementById('user-search').value.toLowerCase();
+            const filtered = usersData.filter(u => 
+                (u.name && u.name.toLowerCase().includes(term)) || 
+                (u.email && u.email.toLowerCase().includes(term)) ||
+                (u.phone && u.phone.includes(term))
+            );
+            renderUsersTable(filtered);
+        }
+
+        function viewUser(uid) {
+            const user = usersData.find(u => u.id === uid);
+            if (!user) return;
+            
+            document.getElementById('user-modal-content').innerHTML = `
+                <div class="flex items-center gap-4 mb-6">
+                    <img src="${user.avatar || 'https://via.placeholder.com/80'}" class="w-20 h-20 rounded-full border-2 border-primary">
+                    <div>
+                        <h4 class="font-bold text-xl">${user.name || 'N/A'}</h4>
+                        <p class="text-textGray">${user.email || 'No email'}</p>
+                        <p class="text-textGray text-sm">${user.phone || 'No phone'}</p>
+                    </div>
+                </div>
+                
+                <div class="grid-2 mb-6">
+                    <div class="bg-surface p-4 rounded-lg">
+                        <p class="text-textGray text-xs mb-1">Spot Balance</p>
+                        <p class="text-xl font-bold font-mono text-primary">₹${(user.spotBalance || 0).toLocaleString()}</p>
+                    </div>
+                    <div class="bg-surface p-4 rounded-lg">
+                        <p class="text-textGray text-xs mb-1">Futures Balance</p>
+                        <p class="text-xl font-bold font-mono text-secondary">₹${(user.futuresBalance || 0).toLocaleString()}</p>
+                    </div>
+                    <div class="bg-surface p-4 rounded-lg">
+                        <p class="text-textGray text-xs mb-1">Margin Balance</p>
+                        <p class="text-xl font-bold font-mono text-danger">₹${(user.marginBalance || 0).toLocaleString()}</p>
+                    </div>
+                    <div class="bg-surface p-4 rounded-lg">
+                        <p class="text-textGray text-xs mb-1">Invest Balance</p>
+                        <p class="text-xl font-bold font-mono text-purple-500">₹${(user.investBalance || 0).toLocaleString()}</p>
+                    </div>
+                </div>
+                
+                <div class="space-y-3">
+                    <div class="flex justify-between items-center p-3 bg-surface rounded-lg">
+                        <span class="text-textGray">KYC Status</span>
+                        <span class="status-badge ${user.kycStatus === 'verified' ? 'status-approved' : 'status-pending'}">${user.kycStatus || 'Unverified'}</span>
+                    </div>
+                    <div class="flex justify-between items-center p-3 bg-surface rounded-lg">
+                        <span class="text-textGray">Joined Date</span>
+                        <span>${user.createdAt?.toDate().toLocaleDateString() || 'N/A'}</span>
+                    </div>
+                </div>
+            `;
+            
+            openModal('view-user-modal');
+        }
+
+        // KYC Management
+        async function loadKYC() {
+            filterKYC('pending');
+        }
+
+        async function filterKYC(status) {
+            document.querySelectorAll('#section-kyc .tab-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            const container = document.getElementById('kyc-list');
+            container.innerHTML = '<div class="text-center py-8 text-textGray">Loading...</div>';
+            
+            let query = db.collection('kyc');
+            if (status !== 'all') query = query.where('status', '==', status);
+            
+            const snap = await query.orderBy('submittedAt', 'desc').get();
+            
+            if (snap.empty) {
+                container.innerHTML = '<div class="empty-state"><i class="fas fa-id-card"></i><p>No KYC requests found</p></div>';
+                return;
+            }
+            
+            container.innerHTML = snap.docs.map(doc => {
+                const data = doc.data();
+                return `
+                    <div class="glass rounded-xl p-6 border border-border hover:border-primary transition-colors">
+                        <div class="flex flex-wrap justify-between items-start gap-4 mb-4">
+                            <div class="flex items-center gap-3">
+                                <img src="${data.photoUrl || 'https://via.placeholder.com/60'}" class="w-16 h-16 rounded-lg object-cover border border-border">
+                                <div>
+                                    <h4 class="font-bold text-lg">${data.userName}</h4>
+                                    <p class="text-textGray text-sm">${data.email}</p>
+                                    <p class="text-textGray text-xs">${data.phone}</p>
+                                </div>
+                            </div>
+                            <span class="status-badge ${data.status === 'verified' ? 'status-approved' : data.status === 'rejected' ? 'status-rejected' : 'status-pending'}">${data.status}</span>
+                        </div>
+                        
+                        <div class="grid-2 mb-4 text-sm">
+                            <div class="bg-surface p-3 rounded-lg">
+                                <span class="text-textGray block text-xs mb-1">Document Type</span>
+                                <span class="font-semibold uppercase">${data.documentType}</span>
+                            </div>
+                            <div class="bg-surface p-3 rounded-lg">
+                                <span class="text-textGray block text-xs mb-1">Document Number</span>
+                                <span class="font-semibold">${data.documentNumber}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="flex gap-3 mb-4">
+                            <a href="${data.photoUrl}" target="_blank" class="flex-1 bg-surface hover:bg-primary hover:text-black border border-border p-3 rounded-lg text-center text-sm transition-colors">
+                                <i class="fas fa-user mr-2"></i>View Photo
+                            </a>
+                            <a href="${data.documentUrl}" target="_blank" class="flex-1 bg-surface hover:bg-primary hover:text-black border border-border p-3 rounded-lg text-center text-sm transition-colors">
+                                <i class="fas fa-id-card mr-2"></i>View Document
+                            </a>
+                        </div>
+                        
+                        ${data.status === 'pending' ? `
+                            <div class="flex gap-3">
+                                <button onclick="approveKYC('${doc.id}', '${data.uid}')" class="flex-1 bg-primary text-black font-bold py-2 rounded-lg hover:opacity-90">
+                                    <i class="fas fa-check mr-2"></i>Approve
+                                </button>
+                                <button onclick="rejectKYC('${doc.id}')" class="flex-1 bg-danger text-white font-bold py-2 rounded-lg hover:opacity-90">
+                                    <i class="fas fa-times mr-2"></i>Reject
+                                </button>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function approveKYC(docId, userId) {
+            try {
+                await db.collection('kyc').doc(docId).update({ status: 'verified', verifiedAt: new Date() });
+                await db.collection('users').doc(userId).update({ kycStatus: 'verified' });
+                showToast('KYC Approved successfully');
+                filterKYC('pending');
+            } catch (e) {
+                showToast('Error: ' + e.message, 'error');
+            }
+        }
+
+        async function rejectKYC(docId) {
+            const reason = prompt('Enter rejection reason:');
+            if (!reason) return;
+            
+            try {
+                await db.collection('kyc').doc(docId).update({ status: 'rejected', rejectionReason: reason });
+                showToast('KYC Rejected');
+                filterKYC('pending');
+            } catch (e) {
+                showToast('Error: ' + e.message, 'error');
+            }
+        }
+
+        // Deposits Management
+        async function loadDeposits() {
+            filterDeposits('pending');
+        }
+
+        async function filterDeposits(status) {
+            document.querySelectorAll('#section-deposits .tab-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            const tbody = document.getElementById('deposits-table-body');
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4">Loading...</td></tr>';
+            
+            let query = db.collection('payments');
+            if (status !== 'all') query = query.where('status', '==', status);
+            
+            const snap = await query.orderBy('timestamp', 'desc').limit(50).get();
+            
+            if (snap.empty) {
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-textGray">No deposits found</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = snap.docs.map(doc => {
+                const data = doc.data();
+                return `
+                    <tr>
+                        <td class="text-textGray text-sm">${data.timestamp?.toDate().toLocaleDateString() || 'N/A'}</td>
+                        <td>
+                            <div class="font-semibold">${data.userName || 'Unknown'}</div>
+                            <div class="text-xs text-textGray">${data.userEmail || ''}</div>
+                        </td>
+                        <td class="font-mono font-bold text-primary">₹${data.amount || data.usdtAmount + ' USDT'}</td>
+                        <td class="capitalize">${data.type || 'INR'}</td>
+                        <td class="font-mono text-xs">${data.txid || '-'}</td>
+                        <td>
+                            <span class="status-badge status-${data.status}">${data.status}</span>
+                        </td>
+                        <td>
+                            ${data.status === 'pending' ? `
+                                <button onclick="approveDeposit('${doc.id}', '${data.uid}', ${data.amount || 0})" class="action-btn view" title="Approve">
+                                    <i class="fas fa-check"></i>
+                                </button>
+                                <button onclick="rejectDeposit('${doc.id}')" class="action-btn delete" title="Reject">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            ` : '-'}
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        async function approveDeposit(docId, userId, amount) {
+            if (!confirm(`Approve deposit of ₹${amount}?`)) return;
+            
+            try {
+                await db.collection('payments').doc(docId).update({ status: 'approved' });
+                await db.collection('users').doc(userId).update({ 
+                    spotBalance: firebase.firestore.FieldValue.increment(amount) 
+                });
+                showToast('Deposit approved & balance updated');
+                filterDeposits('pending');
+            } catch (e) {
+                showToast('Error: ' + e.message, 'error');
+            }
+        }
+
+        async function rejectDeposit(docId) {
+            if (!confirm('Reject this deposit?')) return;
+            await db.collection('payments').doc(docId).update({ status: 'rejected' });
+            showToast('Deposit rejected');
+            filterDeposits('pending');
+        }
+
+        // Withdrawals Management
+        async function loadWithdrawals() {
+            filterWithdrawals('pending');
+        }
+
+        async function filterWithdrawals(status) {
+            document.querySelectorAll('#section-withdrawals .tab-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            const tbody = document.getElementById('withdrawals-table-body');
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4">Loading...</td></tr>';
+            
+            const snap = await db.collection('withdrawals').where('status', '==', status).orderBy('timestamp', 'desc').get();
+            
+            if (snap.empty) {
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-textGray">No withdrawals found</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = snap.docs.map(doc => {
+                const data = doc.data();
+                return `
+                    <tr>
+                        <td class="text-textGray text-sm">${data.timestamp?.toDate().toLocaleDateString() || 'N/A'}</td>
+                        <td>
+                            <div class="font-semibold">${data.userName || 'Unknown'}</div>
+                        </td>
+                        <td class="font-mono font-bold text-danger">₹${data.amount}</td>
+                        <td class="capitalize">${data.account}</td>
+                        <td class="font-mono text-xs">${data.upi}</td>
+                        <td>
+                            <span class="status-badge status-${data.status}">${data.status}</span>
+                        </td>
+                        <td>
+                            ${data.status === 'pending' ? `
+                                <button onclick="approveWithdrawal('${doc.id}')" class="action-btn view" title="Mark as Paid">
+                                    <i class="fas fa-check"></i>
+                                </button>
+                                <button onclick="rejectWithdrawal('${doc.id}', '${data.uid}', ${data.amount}, '${data.account}')" class="action-btn delete" title="Reject & Refund">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            ` : '-'}
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        async function approveWithdrawal(docId) {
+            if (!confirm('Mark as paid? Make sure you have sent the money to user\'s UPI.')) return;
+            await db.collection('withdrawals').doc(docId).update({ status: 'approved' });
+            showToast('Withdrawal approved');
+            filterWithdrawals('pending');
+        }
+
+        async function rejectWithdrawal(docId, userId, amount, account) {
+            if (!confirm('Reject and refund amount to user?')) return;
+            
+            const balanceField = account + 'Balance';
+            await db.collection('withdrawals').doc(docId).update({ status: 'rejected' });
+            await db.collection('users').doc(userId).update({ 
+                [balanceField]: firebase.firestore.FieldValue.increment(amount) 
+            });
+            showToast('Withdrawal rejected & amount refunded');
+            filterWithdrawals('pending');
+        }
+
+        // NFT Management
+        function loadNFTs() {
+            // Load from main app's state or fetch from DB
+            const grid = document.getElementById('nft-grid');
+            grid.innerHTML = state.allNFTs.map(nft => `
+                <div class="glass rounded-xl overflow-hidden border border-border group hover:border-primary transition-all">
+                    <div class="relative h-48 overflow-hidden">
+                        <img src="${nft.image}" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
+                        <div class="absolute top-2 right-2">
+                            <span class="px-2 py-1 rounded text-xs font-bold bg-purple-500 text-white uppercase">${nft.rarity}</span>
+                        </div>
+                    </div>
+                    <div class="p-4">
+                        <h4 class="font-bold mb-1">${nft.name}</h4>
+                        <p class="text-textGray text-xs mb-3 line-clamp-2">${nft.description}</p>
+                        <div class="flex justify-between items-center mb-3">
+                            <span class="text-primary font-bold">₹${nft.price.toLocaleString()}</span>
+                            <span class="text-xs text-textGray">${nft.holdingDays} days</span>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="editNFT(${nft.id})" class="flex-1 bg-surfaceLight hover:bg-primary hover:text-black py-2 rounded-lg text-sm font-semibold transition-colors">
+                                <i class="fas fa-edit"></i> Edit
+                            </button>
+                            <button onclick="toggleNFT(${nft.id})" class="flex-1 bg-surfaceLight hover:bg-danger hover:text-white py-2 rounded-lg text-sm font-semibold transition-colors">
+                                <i class="fas fa-eye-slash"></i> Hide
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function saveNewNFT() {
+            const name = document.getElementById('nft-name').value;
+            const price = parseFloat(document.getElementById('nft-price').value);
+            const rarity = document.getElementById('nft-rarity').value;
+            const days = parseInt(document.getElementById('nft-days').value);
+            const profit = parseFloat(document.getElementById('nft-profit').value);
+            const desc = document.getElementById('nft-desc').value;
+            const image = document.getElementById('nft-image').value || 'https://via.placeholder.com/400';
+            
+            if (!name || !price) {
+                showToast('Please fill required fields', 'error');
+                return;
+            }
+            
+            const newNFT = {
+                id: Date.now(),
+                name, price, rarity, holdingDays: days, dailyProfit: profit,
+                description: desc, image
+            };
+            
+            state.allNFTs.push(newNFT);
+            closeModal('add-nft-modal');
+            loadNFTs();
+            showToast('NFT created successfully');
+        }
+
+        // Investment Plans
+        function loadInvestments() {
+            const container = document.getElementById('plans-list');
+            container.innerHTML = state.investPlans.map(plan => `
+                <div class="glass rounded-xl p-6 flex justify-between items-center border border-border hover:border-primary transition-colors">
+                    <div class="flex items-center gap-4">
+                        <img src="${plan.image}" class="w-16 h-16 rounded-lg object-cover">
+                        <div>
+                            <h4 class="font-bold text-lg">${plan.name}</h4>
+                            <p class="text-textGray text-sm">${plan.description}</p>
+                            <div class="flex gap-3 mt-2 text-sm">
+                                <span class="text-primary font-bold">${plan.return}% Returns</span>
+                                <span class="text-textGray">|</span>
+                                <span class="text-textGray">${plan.duration} Days</span>
+                                <span class="text-textGray">|</span>
+                                <span class="text-textGray">Min: ₹${plan.min}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex gap-2">
+                        <button class="action-btn edit" onclick="editPlan(${plan.id})"><i class="fas fa-edit"></i></button>
+                        <button class="action-btn delete" onclick="deletePlan(${plan.id})"><i class="fas fa-trash"></i></button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Settings
+        async function savePaymentSettings() {
+            const upi = document.getElementById('upi-id').value;
+            const usdt = document.getElementById('usdt-address').value;
+            const minDep = document.getElementById('min-deposit').value;
+            const minWith = document.getElementById('min-withdrawal').value;
+            
+            await db.collection('admin').doc('config').set({
+                upi, usdtAddress: usdt, minDeposit: minDep, minWithdrawal: minWith
+            }, { merge: true });
+            
+            showToast('Settings saved successfully');
+        }
+
+        // Modal Functions
+        function openModal(id) {
+            document.getElementById(id).style.display = 'flex';
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).style.display = 'none';
+        }
+
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = 'toast ' + (type === 'error' ? 'error' : '');
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        function logout() {
+            auth.signOut();
+        }
+
+        // Close modals on outside click
+        window.onclick = function(event) {
+            if (event.target.classList.contains('modal-overlay')) {
+                event.target.style.display = 'none';
+            }
+        }
+
+        // Sample data for demo (Remove in production)
+        const state = {
+            allNFTs: [
+                { id: 1, name: 'Crypto Dragon #1', description: 'Limited Edition Dragon NFT', price: 2500, holdingDays: 30, dailyProfit: 2.5, image: 'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=400', rarity: 'legendary' },
+                { id: 2, name: 'Fire Phoenix', description: 'Rare Phoenix Collection', price: 5000, holdingDays: 60, dailyProfit: 5.0, image: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=400', rarity: 'epic' },
+            ],
+            investPlans: [
+                { id: 1, name: 'Starter Plan', risk: 'low', return: 5, min: 1000, duration: 30, description: 'Perfect for beginners', image: 'https://images.unsplash.com/photo-1579621970563-ebec7560ff3e?w=400' },
+                { id: 2, name: 'Growth Plan', risk: 'medium', return: 8, min: 5000, duration: 60, description: 'Balanced risk-reward', image: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=400' },
+            ]
+        };
+    </script>
+</body>
+</html>
